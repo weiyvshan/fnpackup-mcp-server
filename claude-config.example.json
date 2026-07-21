@@ -1,0 +1,14 @@
+# Claude Desktop Configuration
+# Copy this to your Claude Desktop config file
+
+{
+  "mcpServers": {
+    "fpk-packager": {
+      "command": "node",
+      "args": ["C:\\Users\\weiyv\\Desktop\\fnpackup\\mcp-fpk-packager\\dist\\index.js"],
+      "env": {
+        "PROJECTS_DIR": "C:\\Users\\weiyv\\Desktop\\fnpackup\\projects"
+      }
+    }
+  }
+}
