@@ -11,7 +11,8 @@
       "command": "node",
       "args": ["/path/to/fnpackup-mcp-server/dist/index.js"],
       "env": {
-        "PROJECTS_DIR": "/path/to/fnpackup/projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects",
+        "FNPACKUP_SERVICE_URL": "http://localhost:1069"
       }
     }
   }

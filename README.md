@@ -5,7 +5,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 
-一个用于打包 fpk 应用程序的 MCP (Model Context Protocol) 服务器。AI agent 可以使用此工具帮助用户创建、编辑和打包 fpk 文件。
+一个用于打包 fpk 应用程序的 MCP (Model Context Protocol) 服务器。作为 fnpackup Web 服务的 Agent 接口，代理前端打包/托管/应用管理。
+
+**重要**: 此 MCP server 需要通过 fnpackup 服务进行打包操作，而不是直接调用 fnpack CLI。
 
 ## 功能
 
@@ -76,7 +78,7 @@ npm run build
     "fnpackup": {
       "command": "fnpackup-mcp-server",
       "env": {
-        "PROJECTS_DIR": "C:\\path\\to\\fnpackup\\projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects"
       }
     }
   }
@@ -92,11 +94,13 @@ npm run build
       "command": "node",
       "args": ["/absolute/path/to/fnpackup-mcp-server/dist/index.js"],
       "env": {
-        "PROJECTS_DIR": "/path/to/fnpackup/projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects",
+        "FNPACKUP_SERVICE_URL": "http://localhost:1069"
       }
     }
   }
 }
+```
 ```
 
 ### Claude Desktop
@@ -115,12 +119,17 @@ npm run build
     "fnpackup": {
       "command": "fnpackup-mcp-server",
       "env": {
-        "PROJECTS_DIR": "C:\\path\\to\\fnpackup\\projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects",
+        "FNPACKUP_SERVICE_URL": "http://localhost:1069"
       }
     }
   }
 }
 ```
+
+**注意**: 请根据你的操作系统替换路径：
+- **Windows**: `C:\\path\\to\\fnpackup\\projects`
+- **macOS/Linux**: `/path/to/fnpackup/projects`
 
 ### 自定义项目目录
 
@@ -133,7 +142,8 @@ npm run build
       "command": "node",
       "args": ["dist/index.js"],
       "env": {
-        "PROJECTS_DIR": "/path/to/your/projects"
+        "PROJECTS_DIR": "/path/to/your/projects",
+        "FNPACKUP_SERVICE_URL": "http://localhost:1069"
       }
     }
   }
@@ -141,6 +151,38 @@ npm run build
 ```
 
 如果未设置，默认使用 `../projects/`（相对于 MCP 服务器的位置）。
+
+## 环境变量
+
+### MCP server 配置
+
+- **PROJECTS_DIR** (必需): fnpackup 服务的项目目录路径
+  - 默认值: `../projects/`（相对于 MCP 服务器的位置）
+  - 示例: `/path/to/fnpackup/projects`
+
+- **FNPACKUP_SERVICE_URL** (可选): fnpackup 服务的 API 地址
+  - 默认值: `http://localhost:1069`
+  - 如果 fnpackup 服务运行在其他地址，需要设置此变量
+
+### fnpackup 服务配置（供参考）
+
+以下环境变量由 fnpackup 服务内部使用，MCP server 不需要配置：
+
+- **FNOS_HTTP_PORT**: FNOS 系统的 HTTP 端口（仅用于应用中心查询）
+- **ASPNETCORE_ENVIRONMENT**: .NET 运行环境（Development/Production）
+
+## 认证说明
+
+**fnpackup 服务不需要任何认证**。它是一个本地/局域网服务，所有 API 端点完全开放，设计用于：
+- 本地开发环境
+- 局域网内信任网络
+- 配合 fnpackup Web UI 使用
+
+MCP server 调用 fnpackup 服务 API 时：
+- ❌ 不需要 API Key
+- ❌ 不需要 Token
+- ❌ 不需要用户名/密码
+- ✅ 只需确保服务已启动并可访问
 
 ## 使用示例
 
@@ -154,7 +196,7 @@ create_application("my-app", "native", "我的第一个应用")
 open_application("my-app")
 
 3. 上传程序
-upload_file("my-app", "C:\\local\\server.js", "app/server/server.js")
+upload_file("my-app", "/path/to/local/server.js", "app/server/server.js")
 
 4. 编辑配置
 edit_manifest("my-app", {
@@ -193,7 +235,7 @@ build_fpk("my-docker-app")
 
 ```
 1. 导入 fpk
-import_fpk("C:\\path\\to\\app.fpk", "imported-app")
+import_fpk("/path/to/app.fpk", "imported-app")
 
 2. 查看结构
 open_application("imported-app")
@@ -313,13 +355,13 @@ fnpackup-mcp-server/
 
 1. **路径安全**: 所有文件操作限制在项目目录内
 2. **用户确认**: 删除、覆盖等危险操作需要用户确认
-3. **fnpack 依赖**: 需要安装 fnpack 工具
+3. **fnpackup 服务依赖**: 需要启动 fnpackup Web 服务（默认端口 1069）来处理打包操作
 4. **编码支持**: 支持 UTF-8 和 Base64 编码文件
 
 ## 依赖要求
 
 - Node.js 18+
-- fnpack（打包工具）
+- fnpackup Web 服务（运行在 http://localhost:1069）
 - 项目目录：`../projects/`（或通过环境变量配置）
 
 ## License

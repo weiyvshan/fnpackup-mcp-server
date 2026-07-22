@@ -84,12 +84,14 @@
     "fnpackup": {
       "command": "fnpackup-mcp-server",
       "env": {
-        "PROJECTS_DIR": "C:\\path\\to\\fnpackup\\projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects"
       }
     }
   }
 }
 ```
+
+**改进**: 使用通用跨平台路径格式，同时在 README 中提供 Windows 和 Unix 系统各自的路径示例
 
 ### 3. 安装指南.md
 

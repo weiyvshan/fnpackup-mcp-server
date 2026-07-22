@@ -1,16 +1,14 @@
 import path from "path";
 import fs from "fs-extra";
-import { spawn } from "child_process";
-import { promisify } from "util";
-import { exec as execCb } from "child_process";
-
-const exec = promisify(execCb);
 
 export class FpkBuilder {
   private appManager: any;
+  private fnpackupServiceUrl: string;
 
   constructor(appManager: any) {
     this.appManager = appManager;
+    // fnpackup service URL - defaults to localhost:1069
+    this.fnpackupServiceUrl = process.env.FNPACKUP_SERVICE_URL || "http://localhost:1069";
   }
 
   /**
@@ -40,35 +38,24 @@ export class FpkBuilder {
     const startTime = Date.now();
 
     try {
-      // 查找 fnpack 可执行文件
-      const fnpackPath = this.findFnpack();
-
-      // 构建命令
-      const args = ["build", appName];
-
-      // 执行打包
-      const result = await this.executeCommand(fnpackPath, args, {
-        cwd: this.appManager.projectsDir || path.dirname(appPath),
-      });
+      // 调用 fnpackup 服务 API 进行打包
+      const result = await this.callFnpackupService(appName);
 
       const duration = Date.now() - startTime;
 
-      // 查找生成的 fpk 文件
-      const generatedFpk = await this.findGeneratedFpk(appPath);
-
-      if (!generatedFpk) {
-        throw new Error("打包完成但未找到生成的 .fpk 文件");
+      if (!result.success) {
+        throw new Error(result.error || "打包失败");
       }
 
-      // 如果指定了输出路径，移动文件
+      // 如果指定了输出路径，复制文件
       if (outputPath) {
         const outputFullPath = path.resolve(outputPath);
         await fs.ensureDir(path.dirname(outputFullPath));
-        await fs.move(generatedFpk, outputFullPath);
+        await fs.copy(result.fpkPath!, outputFullPath);
         return this.formatResult(true, outputFullPath, duration);
       }
 
-      return this.formatResult(true, generatedFpk, duration);
+      return this.formatResult(true, result.fpkPath!, duration);
     } catch (error) {
       const duration = Date.now() - startTime;
       return this.formatResult(false, null, duration, error instanceof Error ? error.message : String(error));
@@ -76,150 +63,57 @@ export class FpkBuilder {
   }
 
   /**
-   * 查找 fnpack 可执行文件
+   * 调用 fnpackup 服务 API 进行打包
    */
-  private findFnpack(): string {
-    // 优先查找项目目录中的 fnpack
-    const localFnpack = path.resolve(process.cwd(), "..", "fnpack.exe");
-    if (fs.existsSync(localFnpack)) {
-      return localFnpack;
-    }
-
-    // 查找系统 PATH 中的 fnpack
-    const fnpackInPath = process.env.PATH?.split(path.delimiter).find((dir) => {
-      const fnpackPath = path.join(dir, "fnpack.exe");
-      return fs.existsSync(fnpackPath);
-    });
-
-    if (fnpackInPath) {
-      return path.join(fnpackInPath, "fnpack.exe");
-    }
-
-    throw new Error(
-      "找不到 fnpack 可执行文件。请确保 fnpack.exe 位于项目目录或系统 PATH 中。"
-    );
-  }
-
-  /**
-   * 执行命令
-   */
-  private async executeCommand(
-    command: string,
-    args: string[],
-    options: { cwd?: string } = {}
-  ): Promise<{ stdout: string; stderr: string }> {
-    return new Promise((resolve, reject) => {
-      const proc = spawn(command, args, {
-        cwd: options.cwd,
-        shell: true,
-        windowsHide: true,
-      });
-
-      let stdout = "";
-      let stderr = "";
-
-      proc.stdout?.on("data", (data) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr?.on("data", (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on("close", (code) => {
-        if (code === 0) {
-          resolve({ stdout, stderr });
-        } else {
-          reject(new Error(`命令执行失败 (退出码 ${code}):\n${stderr || stdout}`));
-        }
-      });
-
-      proc.on("error", (err) => {
-        reject(new Error(`命令执行错误: ${err.message}`));
-      });
-    });
-  }
-
-  /**
-   * 查找生成的 fpk 文件
-   */
-  private async findGeneratedFpk(appPath: string): Promise<string | null> {
+  private async callFnpackupService(appName: string): Promise<{ success: boolean; fpkPath?: string; error?: string }> {
     try {
-      // 首先在应用目录中查找
-      const files = await fs.readdir(appPath);
-      const fpkFile = files.find((f) => f.endsWith(".fpk"));
+      // 调用 fnpackup 服务的 /project/pack 端点
+      const response = await fetch(`${this.fnpackupServiceUrl}/project/pack?name=${encodeURIComponent(appName)}`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
 
-      if (fpkFile) {
-        const fpkFullPath = path.join(appPath, fpkFile);
-        const stat = await fs.stat(fpkFullPath);
-
-        // 确保是最近生成的文件（5分钟内）
-        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        if (stat.mtimeMs > fiveMinutesAgo) {
-          return fpkFullPath;
-        }
+      if (!response.ok) {
+        throw new Error(`fnpackup 服务返回错误: ${response.status} ${response.statusText}`);
       }
 
-      // 如果应用目录中没找到，搜索临时目录
-      const tempDir = process.env.TEMP || process.env.TMP || "/tmp";
-      const tempFpk = await this.findFpkInTempDir(tempDir, appPath);
-      if (tempFpk) {
-        return tempFpk;
+      const data = await response.json() as Array<{ FileName: string; Msg: string }>;
+
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("fnpackup 服务返回了无效的响应格式");
       }
 
-      return null;
+      // 查找成功的打包结果
+      const successResult = data.find(item => item.FileName && item.FileName.endsWith(".fpk"));
+
+      if (!successResult) {
+        const errorMsg = data[0].Msg || "打包失败，未生成 .fpk 文件";
+        throw new Error(errorMsg);
+      }
+
+      // fpk 文件应该在应用目录中
+      const fpkPath = path.join(this.appManager.getAppPath(appName), successResult.FileName);
+
+      // 验证文件是否存在
+      if (!(await fs.pathExists(fpkPath))) {
+        throw new Error(`打包完成但未找到生成的 .fpk 文件: ${successResult.FileName}`);
+      }
+
+      return { success: true, fpkPath };
     } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * 在临时目录中查找 fpk 文件
-   */
-  private async findFpkInTempDir(tempDir: string, appPath: string): Promise<string | null> {
-    try {
-      const tempPath = path.resolve(tempDir);
-
-      // 读取临时目录
-      const entries = await fs.readdir(tempPath, { withFileTypes: true });
-
-      // 查找 fnpack.* 开头的目录
-      const fnpackDirs = entries
-        .filter((entry) => entry.isDirectory() && entry.name.startsWith("fnpack."))
-        .map((entry) => path.join(tempPath, entry.name))
-        .sort((a, b) => {
-          // 按修改时间降序排序，优先检查最新的目录
-          return (fs.statSync(b).mtimeMs || 0) - (fs.statSync(a).mtimeMs || 0);
-        });
-
-      // 遍历 fnpack 临时目录查找 fpk 文件
-      for (const dir of fnpackDirs) {
-        try {
-          const files = await fs.readdir(dir);
-          const fpkFile = files.find((f) => f.endsWith(".fpk"));
-
-          if (fpkFile) {
-            const fpkFullPath = path.join(dir, fpkFile);
-            const stat = await fs.stat(fpkFullPath);
-
-            // 确保是最近生成的文件（5分钟内）
-            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-            if (stat.mtimeMs > fiveMinutesAgo) {
-              // 将文件移动到应用目录
-              const targetPath = path.join(appPath, fpkFile);
-              await fs.move(fpkFullPath, targetPath);
-              return targetPath;
-            }
-          }
-        } catch (error) {
-          // 继续检查下一个目录
-          continue;
+      if (error instanceof Error) {
+        // 提供更友好的错误信息
+        if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
+          return {
+            success: false,
+            error: `无法连接到 fnpackup 服务 (${this.fnpackupServiceUrl})。请确保 fnpackup 服务已启动。\n原始错误: ${error.message}`
+          };
         }
+        return { success: false, error: error.message };
       }
-
-      return null;
-    } catch (error) {
-      return null;
+      return { success: false, error: String(error) };
     }
   }
 

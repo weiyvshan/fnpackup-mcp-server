@@ -6,8 +6,14 @@ export class AppManager {
   private projectsDir: string;
 
   constructor() {
-    // 默认指向 fnpackup 的 projects 目录
-    this.projectsDir = path.resolve(process.cwd(), "..", "projects");
+    // 优先使用环境变量 PROJECTS_DIR，否则使用默认路径
+    const envProjectsDir = process.env.PROJECTS_DIR;
+    if (envProjectsDir) {
+      this.projectsDir = path.resolve(envProjectsDir);
+    } else {
+      // 默认指向 fnpackup 的 projects 目录
+      this.projectsDir = path.resolve(process.cwd(), "..", "projects");
+    }
   }
 
   /**
