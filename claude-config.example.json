@@ -1,13 +1,17 @@
 # Claude Desktop Configuration
 # Copy this to your Claude Desktop config file
+#
+# ⚠️ 注意：请替换以下路径为你自己的实际路径
+# Windows 示例: C:\\path\\to\\fnpackup\\projects
+# macOS/Linux 示例: /path/to/fnpackup/projects
 
 {
   "mcpServers": {
-    "fpk-packager": {
+    "fnpackup": {
       "command": "node",
-      "args": ["C:\\Users\\weiyv\\Desktop\\fnpackup\\mcp-fpk-packager\\dist\\index.js"],
+      "args": ["/path/to/fnpackup-mcp-server/dist/index.js"],
       "env": {
-        "PROJECTS_DIR": "C:\\Users\\weiyv\\Desktop\\fnpackup\\projects"
+        "PROJECTS_DIR": "/path/to/fnpackup/projects"
       }
     }
   }

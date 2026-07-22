@@ -1,5 +1,10 @@
 # MCP FPK 打包服务器
 
+[![Version](https://img.shields.io/npm/v/fnpackup-mcp-server.svg)](https://www.npmjs.com/package/fnpackup-mcp-server)
+[![License](https://img.shields.io/npm/l/fnpackup-mcp-server.svg)](https://github.com/weiyvshan/fnpackup-mcp-server/blob/main/LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+
 一个用于打包 fpk 应用程序的 MCP (Model Context Protocol) 服务器。AI agent 可以使用此工具帮助用户创建、编辑和打包 fpk 文件。
 
 ## 功能
@@ -36,13 +41,63 @@
 
 ## 安装
 
+### 方式 A：使用 npm（推荐）
+
 ```bash
-cd mcp-fpk-packager
+npm install -g fnpackup-mcp-server
+```
+
+### 方式 B：使用 npx（无需全局安装）
+
+```bash
+npx fnpackup-mcp-server
+```
+
+### 方式 C：源码安装
+
+```bash
+git clone https://github.com/weiyvshan/fnpackup-mcp-server.git
+cd fnpackup-mcp-server
 npm install
 npm run build
 ```
 
 ## 配置
+
+### Claude Code
+
+编辑 Claude Code 配置文件 `~/.claude/mcp.json`：
+
+**全局安装时（推荐）**：
+
+```json
+{
+  "mcpServers": {
+    "fnpackup": {
+      "command": "fnpackup-mcp-server",
+      "env": {
+        "PROJECTS_DIR": "C:\\path\\to\\fnpackup\\projects"
+      }
+    }
+  }
+}
+```
+
+**源码运行时（开发者）**：
+
+```json
+{
+  "mcpServers": {
+    "fnpackup": {
+      "command": "node",
+      "args": ["/absolute/path/to/fnpackup-mcp-server/dist/index.js"],
+      "env": {
+        "PROJECTS_DIR": "/path/to/fnpackup/projects"
+      }
+    }
+  }
+}
+```
 
 ### Claude Desktop
 
@@ -57,11 +112,10 @@ npm run build
 ```json
 {
   "mcpServers": {
-    "fpk-packager": {
-      "command": "node",
-      "args": ["C:\\Users\\weiyv\\Desktop\\fnpackup\\mcp-fpk-packager\\dist\\index.js"],
+    "fnpackup": {
+      "command": "fnpackup-mcp-server",
       "env": {
-        "PROJECTS_DIR": "C:\\Users\\weiyv\\Desktop\\fnpackup\\projects"
+        "PROJECTS_DIR": "C:\\path\\to\\fnpackup\\projects"
       }
     }
   }
@@ -210,10 +264,35 @@ npm run build
 npm run dev
 ```
 
+### 代码检查
+
+```bash
+npm run lint
+npm run typecheck
+```
+
+### 发布到 npm
+
+1. 更新版本号
+```bash
+npm version patch  # 或 minor / major
+```
+
+2. 构建并测试
+```bash
+npm run build
+npm run typecheck
+```
+
+3. 发布
+```bash
+npm publish
+```
+
 ### 项目结构
 
 ```
-mcp-fpk-packager/
+fnpackup-mcp-server/
 ├── src/
 │   ├── index.ts                 # MCP 服务器入口
 │   ├── tools/                   # 工具实现
@@ -225,7 +304,8 @@ mcp-fpk-packager/
 │   │   └── validator.ts         # 验证器
 ├── package.json
 ├── tsconfig.json
-├── 设计文档.md
+├── LICENSE
+├── CHANGELOG.md
 └── README.md
 ```
 

@@ -2,8 +2,9 @@ import path from "path";
 import fs from "fs-extra";
 import { spawn } from "child_process";
 import { promisify } from "util";
+import { exec as execCb } from "child_process";
 
-const exec = promisify(require("child_process").exec);
+const exec = promisify(execCb);
 
 export class FpkBuilder {
   private appManager: any;

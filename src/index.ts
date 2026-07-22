@@ -38,7 +38,7 @@ class FpkPackagerServer {
     // 创建 MCP 服务器
     this.server = new Server(
       {
-        name: "mcp-fpk-packager",
+        name: "fnpackup-mcp-server",
         version: "1.0.0",
       },
       {

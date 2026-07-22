@@ -331,7 +331,8 @@ export class Validator {
 
       // 检查端口映射
       for (const [serviceName, service] of Object.entries(parsed.services || {})) {
-        if (!service.ports && !service.ports) {
+        const svc = service as { ports?: unknown };
+        if (!svc.ports) {
           warnings.push({
             type: "docker",
             severity: "warning",
