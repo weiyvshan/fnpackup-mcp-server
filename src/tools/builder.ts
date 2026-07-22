@@ -145,6 +145,7 @@ export class FpkBuilder {
    */
   private async findGeneratedFpk(appPath: string): Promise<string | null> {
     try {
+      // 首先在应用目录中查找
       const files = await fs.readdir(appPath);
       const fpkFile = files.find((f) => f.endsWith(".fpk"));
 
@@ -156,6 +157,63 @@ export class FpkBuilder {
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
         if (stat.mtimeMs > fiveMinutesAgo) {
           return fpkFullPath;
+        }
+      }
+
+      // 如果应用目录中没找到，搜索临时目录
+      const tempDir = process.env.TEMP || process.env.TMP || "/tmp";
+      const tempFpk = await this.findFpkInTempDir(tempDir, appPath);
+      if (tempFpk) {
+        return tempFpk;
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * 在临时目录中查找 fpk 文件
+   */
+  private async findFpkInTempDir(tempDir: string, appPath: string): Promise<string | null> {
+    try {
+      const tempPath = path.resolve(tempDir);
+
+      // 读取临时目录
+      const entries = await fs.readdir(tempPath, { withFileTypes: true });
+
+      // 查找 fnpack.* 开头的目录
+      const fnpackDirs = entries
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("fnpack."))
+        .map((entry) => path.join(tempPath, entry.name))
+        .sort((a, b) => {
+          // 按修改时间降序排序，优先检查最新的目录
+          return (fs.statSync(b).mtimeMs || 0) - (fs.statSync(a).mtimeMs || 0);
+        });
+
+      // 遍历 fnpack 临时目录查找 fpk 文件
+      for (const dir of fnpackDirs) {
+        try {
+          const files = await fs.readdir(dir);
+          const fpkFile = files.find((f) => f.endsWith(".fpk"));
+
+          if (fpkFile) {
+            const fpkFullPath = path.join(dir, fpkFile);
+            const stat = await fs.stat(fpkFullPath);
+
+            // 确保是最近生成的文件（5分钟内）
+            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+            if (stat.mtimeMs > fiveMinutesAgo) {
+              // 将文件移动到应用目录
+              const targetPath = path.join(appPath, fpkFile);
+              await fs.move(fpkFullPath, targetPath);
+              return targetPath;
+            }
+          }
+        } catch (error) {
+          // 继续检查下一个目录
+          continue;
         }
       }
 
