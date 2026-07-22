@@ -1,6 +1,6 @@
 {
   "name": "fnpackup-mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MCP server for packaging fpk applications - helps AI agents create, edit and package fnpackup applications",
   "type": "module",
   "main": "dist/index.js",
